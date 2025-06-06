@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-EncybaraApplication<Encybara-backend-app>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "utc.englishlearning.Encybara.EncybaraApplication",
+            "projectName": "Encybara-backend-app",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
