@@ -6,7 +6,7 @@ import { Rate } from 'antd';
 import { API_BASE_URL } from 'service/api.config';
 import { Comment as AntdComment } from '@ant-design/compatible';
 import { FaDiscord, FaComments, FaStar } from 'react-icons/fa';
-import { fetchLessonDiscussions } from 'api/forum';
+import { fetchLessonDiscussions, fetchAllCourseReviews } from 'api/forum';
 export interface IDiscussionStats {
     totalDiscussions: number;
     totalComments: number;
@@ -19,6 +19,7 @@ export interface IDiscussionStats {
     };
 }
 
+export interface IDiscussionReply {
 export interface IDiscussionReply {
     id: number;
     userId: number;
@@ -35,10 +36,11 @@ export interface IDiscussionReply {
 }
 
 export interface IDiscussion extends IDiscussionReply {
+export interface IDiscussion extends IDiscussionReply {
     status: 'ACTIVE' | 'PENDING' | 'REPORTED' | 'HIDDEN';
 }
 
-interface ICourseReviewStats {
+export interface ICourseReviewStats {
     totalReviews: number;
     averageRating: number;
     ratingDistribution: {
@@ -52,7 +54,7 @@ interface ICourseReviewStats {
     }[];
 }
 
-interface ICourseReview {
+export interface ICourseReview {
     id: number;
     userId: number;
     courseId: number;
@@ -77,6 +79,7 @@ interface ICourseReview {
 }
 
 export interface ILesson {
+export interface ILesson {
     id: number;
     name: string;
     discussions: IDiscussion[];
@@ -93,6 +96,12 @@ const ForumManagement = () => {
 
 
         useEffect(() => {
+            const fetchData = async () => {
+                const lessonDiscussData = await fetchLessonDiscussions();
+                setLessons(lessonDiscussData.filter(Boolean));
+            };
+            fetchData();
+
             const fetchData = async () => {
                 const lessonDiscussData = await fetchLessonDiscussions();
                 setLessons(lessonDiscussData.filter(Boolean));
@@ -224,123 +233,19 @@ const ForumManagement = () => {
         const [pageSize, setPageSize] = useState<number>(10); // Kích thước trang
         const [currentPage, setCurrentPage] = useState<number>(1); // Trang hiện tại
         const [total, setTotal] = useState<number>(0); // Thêm state cho tổng số lượng bản ghi
-        // Fetch danh sách courses
-        const fetchCourses = async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/v1/courses?size=100`);
-                const data = await res.json();
-                setCourses(data.data.content || []);
-                // Sau khi có courses, fetch reviews cho từng course
-                console.log("data.data.content", data.data.content);
-                data.data.content?.forEach((course: any) => {
-                    fetchReviewsByCourse(course);
-                });
-            } catch (error) {
-                console.error("Error fetching courses:", error);
-            }
-        };
-
-        // Fetch reviews theo courseId
-        const fetchReviewsByCourse = async (course: any) => {
-            setLoading(true);
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/v1/reviews/course/${course.id}`,
-                    {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                        }
-                    }
-                );
-                const data = await res.json();
-
-                // Fetch thông tin user cho mỗi review
-                const reviewsWithUserInfo = await Promise.all(
-                    data.data.content.map(async (review: ICourseReview) => {
-                        const userRes = await fetch(`${API_BASE_URL}/api/v1/users/${review.userId}?page=1&size=4`, {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                            }
-                        });
-                        const userData = await userRes.json();
-                        console.log("userData", userData);
-                        return {
-                            ...review,
-                            author: {
-                                id: userData.id,
-                                name: userData.name,
-                                avatar: "https://randomuser.me/api/portraits/men/1.jpg"
-                            },
-                            course: {
-                                id: course.id,
-                                name: course.name
-                            }
-                        };
-                    })
-                );
-
-                setReviews(prevReviews => {
-                    const newReviews = [...prevReviews, ...reviewsWithUserInfo];
-                    updateStats(newReviews);
-                    return newReviews;
-                });
-            } catch (error) {
-                console.error(`Error fetching reviews for course ${course.id}:`, error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        const updateStats = (reviews: ICourseReview[]) => {
-            const totalReviews = reviews.length;
-            const sumRatings = reviews.reduce((sum, review) => sum + review.numStar, 0);
-            const averageRating = totalReviews > 0 ? sumRatings / totalReviews : 0;
-
-            // Tính phân bố rating
-            const distribution = {
-                1: 0, 2: 0, 3: 0, 4: 0, 5: 0
-            };
-            reviews.forEach(review => {
-                distribution[review.numStar as keyof typeof distribution]++;
-            });
-
-            // Tính top courses
-            const courseStats = new Map<number, { name: string, totalRating: number, count: number }>();
-            reviews.forEach(review => {
-                if (review.course) {
-                    const current = courseStats.get(review.course.id) || {
-                        name: review.course.name,
-                        totalRating: 0,
-                        count: 0
-                    };
-                    courseStats.set(review.course.id, {
-                        name: review.course.name,
-                        totalRating: current.totalRating + review.numStar,
-                        count: current.count + 1
-                    });
-                }
-            });
-
-            const topCourses = Array.from(courseStats.entries())
-                .map(([id, stats]) => ({
-                    id,
-                    name: stats.name,
-                    rating: stats.totalRating / stats.count,
-                    reviewCount: stats.count
-                }))
-                .sort((a, b) => b.rating - a.rating)
-                .slice(0, 4);
-
-            setStats({
-                totalReviews,
-                averageRating,
-                ratingDistribution: distribution,
-                topCourses
-            });
-        };
 
         useEffect(() => {
-            fetchCourses();
+            const fetchData = async () => {
+                try {
+                    const { reviews: allReviews, stats: reviewStats } = await fetchAllCourseReviews();
+                    setReviews(allReviews)
+                    setStats(reviewStats)
+                }
+                catch (error) {
+                    throw Error("Error when fetch data")
+                }
+            }
+            fetchData();
         }, []);
 
         const renderReviewContent = (record: ICourseReview) => (
