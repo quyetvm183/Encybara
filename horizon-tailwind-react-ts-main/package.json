@@ -5,7 +5,7 @@
   "dependencies": {
     "@ant-design/compatible": "^5.1.4",
     "@ant-design/icons": "^5.0.0",
-    "@ant-design/pro-components": "^2.6.46",
+    "@ant-design/pro-components": "2.6.46",
     "@chakra-ui/hooks": "^2.1.4",
     "@chakra-ui/modal": "^2.2.9",
     "@chakra-ui/popover": "^2.1.8",

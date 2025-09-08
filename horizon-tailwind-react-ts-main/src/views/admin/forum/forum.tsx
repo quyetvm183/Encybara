@@ -6,8 +6,8 @@ import { Rate } from 'antd';
 import { API_BASE_URL } from 'service/api.config';
 import { Comment as AntdComment } from '@ant-design/compatible';
 import { FaDiscord, FaComments, FaStar } from 'react-icons/fa';
-
-interface IDiscussionStats {
+import { fetchLessonDiscussions } from 'api/forum';
+export interface IDiscussionStats {
     totalDiscussions: number;
     totalComments: number;
     activeUsers: number;
@@ -19,7 +19,7 @@ interface IDiscussionStats {
     };
 }
 
-interface IDiscussionReply {
+export interface IDiscussionReply {
     id: number;
     userId: number;
     lessonId: number;
@@ -34,7 +34,7 @@ interface IDiscussionReply {
     parentId?: number;
 }
 
-interface IDiscussion extends IDiscussionReply {
+export interface IDiscussion extends IDiscussionReply {
     status: 'ACTIVE' | 'PENDING' | 'REPORTED' | 'HIDDEN';
 }
 
@@ -76,28 +76,12 @@ interface ICourseReview {
     createdAt?: Date;
 }
 
-interface ILesson {
+export interface ILesson {
     id: number;
     name: string;
     discussions: IDiscussion[];
 }
 
-// Mock Data
-const mockStats: IDiscussionStats = {
-    totalDiscussions: 1250,
-    totalComments: 3420,
-    activeUsers: 890,
-    topCategories: [
-        { name: 'JavaScript', count: 320 },
-        { name: 'React', count: 280 },
-        { name: 'Node.js', count: 210 }
-    ],
-    recentTrends: {
-        daily: 45,
-        weekly: 280,
-        monthly: 1200
-    }
-};
 
 const ForumManagement = () => {
     const [activeTab, setActiveTab] = useState('discussions');
@@ -107,87 +91,14 @@ const ForumManagement = () => {
         const [loading, setLoading] = useState(false);
         const [lessons, setLessons] = useState<ILesson[]>([]);
 
-        const fetchLessonDiscussions = async () => {
-            setLoading(true);
-            try {
-                const lessonsRes = await fetch(`${API_BASE_URL}/api/v1/lessons?size=200`);
-                const lessonsData = await lessonsRes.json();
-
-                // Fetch và lọc lessons có discussions
-                const lessonsWithDiscussions = await Promise.all(
-                    lessonsData.data.content.map(async (lesson: any) => {
-                        const discussionsRes = await fetch(
-                            `${API_BASE_URL}/api/v1/discussions/lesson/${lesson.id}`,
-                            {
-                                headers: {
-                                    'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                                }
-                            }
-                        );
-                        const discussionsData = await discussionsRes.json();
-
-                        // Chỉ lấy parent discussions (không có parentId)
-                        const parentDiscussions = discussionsData.data.content.filter(
-                            (d: IDiscussion) => !d.parentId
-                        );
-
-                        if (parentDiscussions.length > 0) {
-                            // Add user info cho parent discussions
-                            const discussionsWithUsers = await Promise.all(
-                                parentDiscussions.map((discussion: IDiscussion) => addUserInfo(discussion))
-                            );
-                            console.log("discussionsWithUsers", discussionsWithUsers);
-                            return {
-                                id: lesson.id,
-                                name: lesson.name,
-                                discussions: discussionsWithUsers
-                            };
-                        }
-                        return null;
-                    })
-                );
-
-                // Lọc bỏ các lesson không có discussions
-                setLessons(lessonsWithDiscussions.filter(Boolean));
-            } catch (error) {
-                console.error("Error fetching lessons and discussions:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        // Recursive function to add user info to discussion and replies
-        const addUserInfo = async (item: IDiscussionReply): Promise<IDiscussionReply> => {
-            try {
-                const userRes = await fetch(`${API_BASE_URL}/api/v1/users/${item.userId}`, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                    }
-                });
-                const userData = await userRes.json();
-
-                // Recursively process replies
-                const repliesWithUsers = await Promise.all(
-                    (item.replies || []).map(reply => addUserInfo(reply))
-                );
-
-                return {
-                    ...item,
-                    author: {
-                        name: userData.name,
-                        avatar: "https://randomuser.me/api/portraits/men/1.jpg"
-                    },
-                    replies: repliesWithUsers
-                };
-            } catch (error) {
-                console.error(`Error fetching user data for discussion ${item.id}:`, error);
-                return item;
-            }
-        };
 
         useEffect(() => {
-            fetchLessonDiscussions();
+            const fetchData = async () => {
+                const lessonDiscussData = await fetchLessonDiscussions();
+                setLessons(lessonDiscussData.filter(Boolean));
+            };
+            fetchData();
+
         }, []);
 
         return (
@@ -619,30 +530,6 @@ const ForumManagement = () => {
             </div>
         );
     };
-
-    const items = [
-        {
-            key: 'discussions',
-            label: (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <FaComments />
-                    Discussions
-                </span>
-            ),
-            children: <DiscussionsTab />
-        },
-        {
-            key: 'reviews',
-            label: (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <FaStar />
-                    Course Reviews
-                </span>
-            ),
-            children: <CourseReviewsTab />
-        }
-    ];
-
     return (
         <div>
             <div style={{

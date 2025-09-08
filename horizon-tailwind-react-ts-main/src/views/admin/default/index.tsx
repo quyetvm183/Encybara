@@ -4,8 +4,8 @@ import { MdBarChart, MdDashboard } from "react-icons/md";
 import Lottie from 'react-lottie';
 import Widget from "components/widget/Widget";
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "service/api.config";
 import { useNavigate } from 'react-router-dom';
+import { fetchUser, fetchCourse, fetchQuestion, fetchLesson } from "api/defaut";
 
 const Dashboard = () => {
   const [userCount, setUserCount] = useState(0);
@@ -14,58 +14,17 @@ const Dashboard = () => {
   const [lessonCount, setLessonCount] = useState(0);
   const navigator = useNavigate();
   useEffect(() => {
-    const fetchUser = async () => {
-      const res = await fetch(`${API_BASE_URL}/api/v1/users`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-          }
-        }
-      );
-      const data = await res.json();
-      setUserCount(data.meta.total);
-    };
-    fetchUser();
-    const fetchCourse = async () => {
-      const res = await fetch(`${API_BASE_URL}/api/v1/courses`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-          }
-        }
-      );
-      const data = await res.json();
-      setCourseCount(data.data.totalElements);
-    };
-    fetchCourse();
-    const fetchQuestion = async () => {
-      const res = await fetch(`${API_BASE_URL}/api/v1/questions`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-
-          }
-        }
-      );
-      const data = await res.json();
-      setQuestionCount(data.data.totalElements);
-    };
-    fetchQuestion();
-    const fetchLesson = async () => {
-      const res = await fetch(`${API_BASE_URL}/api/v1/lessons`,
-        {
-          method: 'GET',
-        }
-      );
-      const data = await res.json();
-      setLessonCount(data.data.totalElements);
-    };
-    fetchLesson();
+    const fetchData = async () => {
+      const user = await fetchUser();
+      const course = await fetchCourse();
+      const question = await fetchQuestion();
+      const lesson = await fetchLesson();
+      setUserCount(user);
+      setCourseCount(course);
+      setQuestionCount(question);
+      setLessonCount(lesson);
+    }
+    fetchData();
   }, []);
 
   return (
