@@ -2,9 +2,9 @@ import { Lesson } from "./LessonList";
 import { FooterToolbar, ModalForm, ProCard, ProFormSelect, ProFormSwitch, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
 import { Col, Form, Row, message, notification } from "antd";
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "service/api.config";
 import { CheckSquareOutlined } from "@ant-design/icons";
 import { useAuth } from "hooks/useAuth";
+import { addLessonQuestions, createLesson, fetchQuestions, removeLessonQuestion, updateLessonById } from "api/lesson";
 
 interface IProps {
     openModal: boolean;
@@ -33,35 +33,28 @@ const ModuleLesson = (props: IProps) => {
     }, [listLesson, form]);
 
     useEffect(() => {
-        const fetchQuestions = async () => {
+        const run = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/questions?page=1&size=1000`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
+                const response = await fetchQuestions(token, 1, 1000);
                 const data = await response.json();
                 const filteredQuestions = data.data.content
                     .filter((q: any) => q.skillType === listLesson?.skillType)
                     .map((q: any) => ({
                         label: q.quesContent,
                         value: q.id,
-
                     }));
                 setQuestions(filteredQuestions);
             } catch (error) {
                 console.error("Error fetching questions:", error);
             }
         };
-
-        fetchQuestions();
-    }, [token, selectedQuestionIds]);
+        run();
+    }, [token, selectedQuestionIds, listLesson?.skillType]);
 
     const handleReset = async () => {
         form.resetFields();
         setOpenModal(false);
+        // @ts-ignore - allow null to clear
         setListLesson(null);
     }
     const handleQuestionChange = async (newSelectedIds: number[]) => {
@@ -69,17 +62,9 @@ const ModuleLesson = (props: IProps) => {
         const addedIds = newSelectedIds.filter(id => !selectedQuestionIds.includes(id));
         const removedIds = selectedQuestionIds.filter(id => !newSelectedIds.includes(id));
 
-        if (addedIds.length > 0) {
+        if (addedIds.length > 0 && listLesson?.id) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/lessons/${listLesson?.id}/questions`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ questionIds: addedIds }),
-                });
-
+                const response = await addLessonQuestions(listLesson.id, addedIds, token);
                 if (response.ok) {
                     message.success("Add question successfully");
                 } else {
@@ -92,18 +77,10 @@ const ModuleLesson = (props: IProps) => {
             }
         }
 
-        if (removedIds.length > 0) {
+        if (removedIds.length > 0 && listLesson?.id) {
             try {
                 for (const questionId of removedIds) {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/lessons/${listLesson?.id}/questions`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ questionId }),
-                    });
-
+                    const response = await removeLessonQuestion(listLesson.id, questionId, token);
                     if (response.ok) {
                         message.success(`Delete question ${questionId} successfully`);
                     } else {
@@ -125,17 +102,8 @@ const ModuleLesson = (props: IProps) => {
             name,
             skillType
         }
-        console.log("lesson", lesson);
         if (listLesson?.id) {
-            const res = await fetch(`${API_BASE_URL}/api/v1/lessons/${listLesson.id}`, {
-                method: "PUT",
-                body: JSON.stringify(lesson),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-            });
-
+            const res = await updateLessonById(listLesson.id, lesson, token);
             const data = await res.json();
             if (res.ok) {
                 message.success("Update lesson successfully");
@@ -148,15 +116,7 @@ const ModuleLesson = (props: IProps) => {
                 });
             }
         } else {
-            const res = await fetch(`${API_BASE_URL}/api/v1/lessons`, {
-                method: "POST",
-                body: JSON.stringify(lesson),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-            });
-
+            const res = await createLesson(lesson, token);
             const data = await res.json();
             if (res.ok) {
                 message.success("Create lesson successfully");

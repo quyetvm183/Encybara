@@ -3,7 +3,7 @@ import Project from "./components/Project";
 import { API_BASE_URL } from "service/api.config";
 import { useAuth } from "hooks/useAuth";
 import { App } from 'antd';
-
+import { fetchCourses } from "api/forum";
 const ProfileOverview = () => {
   const [tableData, setTableData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,13 +15,7 @@ const ProfileOverview = () => {
       // Lấy token từ local storage
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/courses`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await fetchCourses()
 
         if (!response.ok) {
           throw new Error("Failed to fetch data");

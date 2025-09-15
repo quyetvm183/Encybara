@@ -9,6 +9,8 @@ import Access from "views/admin/access";
 import { message, Pagination } from "antd";
 import { Select, Input, Button, Space, Row, Col } from 'antd';
 import { SearchOutlined } from "@ant-design/icons";
+import { fetchLessons as fetchLessonsApi } from "api/lesson";
+
 type RowObj = {
   id: number;
   name: string;
@@ -56,11 +58,11 @@ const Project: React.FC<ProjectProps> = ({ tableData }) => {
       });
 
       // Thêm filter params từ state vào URL
-      if (selectedFilters.diffLevel) queryParams.append('diffLevel', selectedFilters.diffLevel);
-      if (selectedFilters.courseType) queryParams.append('courseType', selectedFilters.courseType);
-      if (selectedFilters.group) queryParams.append('group', selectedFilters.group);
-      if (selectedFilters.courseStatus) queryParams.append('courseStatus', selectedFilters.courseStatus);
-      if (selectedFilters.keyword) queryParams.append('keyword', selectedFilters.keyword);
+      if (selectedFilters.diffLevel) queryParams.append('diffLevel', selectedFilters.diffLevel as any);
+      if (selectedFilters.courseType) queryParams.append('courseType', selectedFilters.courseType as any);
+      if (selectedFilters.group) queryParams.append('group', selectedFilters.group as any);
+      if (selectedFilters.courseStatus) queryParams.append('courseStatus', selectedFilters.courseStatus as any);
+      if (selectedFilters.keyword) queryParams.append('keyword', selectedFilters.keyword as any);
 
       // Gọi API
       const response = await fetch(`${API_BASE_URL}/api/v1/courses?${queryParams}`, {
@@ -182,13 +184,7 @@ const Project: React.FC<ProjectProps> = ({ tableData }) => {
   };
   const fetchLessons = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/lessons?page=1&size=1000`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetchLessonsApi(token, 1, 1000);
 
       if (!response.ok) {
         throw new Error("Failed to fetch lessons");
@@ -307,7 +303,7 @@ const Project: React.FC<ProjectProps> = ({ tableData }) => {
                   showSearch
                   optionFilterProp="children"
                   filterOption={(input, option) =>
-                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    ((option as any)?.label ?? '').toLowerCase().includes(input.toLowerCase())
                   }
                   options={groupOptions.map(group => ({ value: group, label: group }))}
                   loading={groupOptions.length === 0}
@@ -354,7 +350,7 @@ const Project: React.FC<ProjectProps> = ({ tableData }) => {
           <div className="fixed inset-0 z-5 ml-20 flex items-center justify-center  mt-20">
             <div className="fixed inset-0  bg-gray-800 bg-opacity-75 opacity-50"></div>
             <div className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4">
-              <LessonList lessons={lessons} courseId={courseId} fetchLessons={fetchLessons} />
+              <LessonList lessons={lessons} courseId={courseId as any} fetchLessons={fetchLessons} />
               <div className="flex justify-end mt-4"> {/* Căn nút Close sang phải */}
                 <button
                   onClick={() => setShowModal(false)}
