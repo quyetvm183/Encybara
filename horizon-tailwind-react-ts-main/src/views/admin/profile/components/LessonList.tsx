@@ -1,11 +1,10 @@
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useAuth } from "hooks/useAuth";
 import React, { useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "service/api.config";
 import { Button, message, Popconfirm } from "antd";
 import ModuleLesson from "./module.lesson";
 import { notification } from "antd";
-
+import { fetchCourseById, addCourseLessons, removeCourseLesson, deleteLessonById } from "api/lesson";
 export interface Lesson {
     id: number;
     name: string;
@@ -25,21 +24,12 @@ const LessonList: React.FC<LessonListProps> = ({ lessons, courseId, fetchLessons
     const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
     useEffect(() => {
-        // Fetch lessons in the course and set them as selected
         const fetchCourseLessons = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
+                const response = await fetchCourseById(courseId, token);
                 const data = await response.json();
                 if (response.ok) {
                     const courseLessonIds = data.data.lessonIds;
-                    console.log("courseLessonIds:", courseLessonIds);
-                    console.log("lessonIds", courseLessonIds.lessonIds);
                     setSelectedLessons(courseLessonIds);
                 }
             } catch (error) {
@@ -53,21 +43,12 @@ const LessonList: React.FC<LessonListProps> = ({ lessons, courseId, fetchLessons
         const isSelected = selectedLessons.includes(lessonId);
 
         if (isSelected) {
-            // Gọi API để xóa bài học khỏi khóa học
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}/lessons`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ lessonId }),
-                });
+                const response = await removeCourseLesson(courseId, lessonId, token);
 
                 if (response.ok) {
                     setSelectedLessons(prevSelected => prevSelected.filter(id => id !== lessonId));
                     message.success("Lesson removed successfully");
-                    console.log("response", notification);
                 } else {
                     notification.error({
                         message: "Error",
@@ -80,17 +61,8 @@ const LessonList: React.FC<LessonListProps> = ({ lessons, courseId, fetchLessons
                 console.error("Error removing lesson:", error);
             }
         } else {
-            // Gọi API để thêm bài học vào khóa học
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}/lessons`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ lessonIds: [lessonId] }),
-                });
-                console.log("response", response, "lessonid", lessonId);
+                const response = await addCourseLessons(courseId, [lessonId], token);
                 if (response.ok) {
                     setSelectedLessons(prevSelected => [...prevSelected, lessonId]);
                     notification.success({
@@ -116,13 +88,7 @@ const LessonList: React.FC<LessonListProps> = ({ lessons, courseId, fetchLessons
     };
     const handleDeleteLesson = async (lessonId: number) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/lessons/${lessonId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                }
-            });
+            const response = await deleteLessonById(lessonId, token);
             if (response.ok) {
                 message.success("Lesson removed successfully");
                 fetchLessons();

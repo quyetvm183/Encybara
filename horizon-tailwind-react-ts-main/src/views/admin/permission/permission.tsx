@@ -8,19 +8,7 @@ import Lottie from 'react-lottie';
 import ModalPermission from "../permission/components/modal.permission";
 import { colorMethod, groupByPermission } from "../permission/components/color.method";
 import { API_BASE_URL } from "service/api.config";
-//import { ALL_PERMISSIONS } from "../permission/components/modules";
-interface IPermission {
-    id?: number;
-    name?: string;
-    apiPath?: string;
-    method?: string;
-    module?: string;
-
-    createdBy?: string;
-    createdAt?: string;
-    updatedAt?: string;
-
-}
+import { deletePermissions, fetchPermissions, IPermission } from "api/permission";
 const PermissionPage = () => {
     const [openModal, setOpenModal] = useState<boolean>(false);
     const [dataInit, setDataInit] = useState<IPermission | null>(null);
@@ -41,7 +29,7 @@ const PermissionPage = () => {
     const reloadTable = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/permissions?page=1&size=1000`);
+            const res = await fetchPermissions();
             const data = await res.json();
             console.log("data", data);
             setDataSource(data.result); // Cập nhật dataSource
@@ -64,9 +52,7 @@ const PermissionPage = () => {
         if (!id) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/permissions/${id}`, {
-                method: 'DELETE',
-            });
+            const res = await deletePermissions(id);
 
             if (res.ok) {
                 message.success('Delete permission successfully');

@@ -80,7 +80,7 @@ const addUserInfo = async (item: IDiscussionReply): Promise<IDiscussionReply> =>
 // Fetch all courses
 const fetchCourses = async () => {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/courses?size=100`);
+        const res = await fetch(`${API_BASE_URL}/api/v1/courses?size=1000`);
         const data = await res.json();
         return data.data.content || [];
     } catch (error) {

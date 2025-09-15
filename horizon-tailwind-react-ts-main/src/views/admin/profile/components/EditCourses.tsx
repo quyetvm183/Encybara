@@ -3,7 +3,7 @@ import { useAuth } from "hooks/useAuth";
 import { ModalForm, ProFormSelect, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
 import { Row, Col, message } from "antd";
 import { API_BASE_URL } from "service/api.config";
-
+import { fetchCourses, createCourses, updateCourses } from "api/courses";
 interface EditCourseProps {
     courseId: number;
     onClose: () => void;
@@ -28,12 +28,7 @@ const EditCourse: React.FC<EditCourseProps> = ({ courseId, onClose, onSuccess })
         const fetchCourse = async () => {
             try {
                 if (courseId) {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                        },
-                    });
+                    const response = await fetchCourses(courseId);
                     if (!response.ok) {
                         throw new Error("Failed to fetch course data");
                     }
@@ -66,14 +61,7 @@ const EditCourse: React.FC<EditCourseProps> = ({ courseId, onClose, onSuccess })
     const handleSubmit = async (values: any) => {
         try {
             if (courseId) {
-                const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(values),
-                });
+                const response = await updateCourses(values, courseId);
                 if (!response.ok) {
                     throw new Error("Failed to update course");
                 }
@@ -82,14 +70,7 @@ const EditCourse: React.FC<EditCourseProps> = ({ courseId, onClose, onSuccess })
                 onSuccess();
                 onClose();
             } else {
-                const response = await fetch(`${API_BASE_URL}/api/v1/courses`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(values),
-                });
+                const response = await createCourses(values, courseId);
                 if (!response.ok) {
                     throw new Error("Failed to update course");
                 }
