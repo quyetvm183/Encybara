@@ -1,10 +1,10 @@
 import { FooterToolbar, ModalForm, ProCard, ProFormSelect, ProFormSwitch, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
 import { Col, Form, Row, message, notification, Input, Button, Switch, Upload, Typography, Table, Empty } from "antd";
-import { API_BASE_URL } from "service/api.config";
 import { useEffect, useState } from "react";
 import { CheckCircleOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import { IQuestion } from "./module.question";
 import { App } from 'antd';
+import { assignMaterialToQuestion, deleteMaterialById } from "api/question";
 
 export interface IUpload {
     id?: number;
@@ -48,20 +48,13 @@ const ModalUpload = (props: IProps) => {
         const { videoFile } = valuesForm; // Lấy file từ form
         const materLink = videoFile.file.name;
         const materType = videoFile.file.type.split('/').pop(); // Lấy materType từ uploadData
-        const formData = {
+        const payload = {
             materLink: materLink,
             materType: materType,
             questionId: quesID,
         }
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/material/assign/question`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                },
-                body: JSON.stringify(formData),
-            });
+            const res = await assignMaterialToQuestion(payload, localStorage.getItem('admin_token'));
 
             const data = await res.json();
             if (res.ok) {
@@ -90,13 +83,7 @@ const ModalUpload = (props: IProps) => {
     const handleDelete = async (id: number) => {
         console.log("id:", id);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/material/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-                },
-            });
+            const res = await deleteMaterialById(id, localStorage.getItem('admin_token'));
             const data = await res.json();
             if (res.ok) {
                 message.success('Delete material successfully');

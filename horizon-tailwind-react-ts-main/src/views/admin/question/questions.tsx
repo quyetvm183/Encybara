@@ -4,11 +4,12 @@ import { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Popconfirm, Space, Dropdown, Input } from "antd";
 import { useState, useRef, useEffect } from 'react';
 import ModalQuestion from "./components/module.question";
-import { API_BASE_URL } from "service/api.config";
 import { IQuestion } from "./components/module.question";
 import ModalUpload from "./components/module.upload";
 import { App } from 'antd';
 import Access from "../access";
+import { deleteQuestionById, fetchQuestions as fetchQuestionsApi, getMaterialsByQuestion } from "api/question";
+import { fetchLessons as fetchLessonsApi } from "api/lesson";
 
 
 const QuestionPage = () => {
@@ -23,9 +24,9 @@ const QuestionPage = () => {
     const [uploadData, setUploadData] = useState<any>(null); // State để lưu dữ liệu upload
     const [lessonMap, setLessonMap] = useState<{ [key: number]: Array<{ id: number, name: string }> }>({});
     const [selectedFilters, setSelectedFilters] = useState({
-        quesType: undefined,
-        keyword: undefined,
-        skillType: undefined
+        quesType: undefined as any,
+        keyword: undefined as any,
+        skillType: undefined as any
     });
     const { message, notification } = App.useApp();
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -34,21 +35,17 @@ const QuestionPage = () => {
     const reloadTable = async () => {
         setLoading(true);
         try {
-            // Xây dựng query params
-            const queryParams = new URLSearchParams({
-                page: currentPage.toString(),
-                size: pageSize.toString(),
-                point: '10'
+            const res = await fetchQuestionsApi({
+                page: currentPage,
+                size: pageSize,
+                point: '10',
+                quesType: selectedFilters.quesType,
+                skillType: selectedFilters.skillType,
+                keyword: selectedFilters.keyword,
             });
-
-            // Thêm filter params từ state vào URL
-            if (selectedFilters.quesType) queryParams.append('quesType', selectedFilters.quesType);
-            if (selectedFilters.skillType) queryParams.append('skillType', selectedFilters.skillType);
-            if (selectedFilters.keyword) queryParams.append('keyword', selectedFilters.keyword);
-
-            const res = await fetch(`${API_BASE_URL}/api/v1/questions?${queryParams}`);
             const data = await res.json();
-            const resLesson = await fetch(`${API_BASE_URL}/api/v1/lessons`);
+
+            const resLesson = await fetchLessonsApi(null, 1, 1000);
             const dataLesson = await resLesson.json();
             const questionLessonMap: { [key: number]: Array<{ id: number, name: string }> } = {};
             dataLesson.data.content.forEach((lesson: any) => {
@@ -79,12 +76,12 @@ const QuestionPage = () => {
     }, [currentPage, pageSize, selectedFilters]);
 
     useEffect(() => {
-        const fetchLessons = async () => {
-            const res = await fetch(`${API_BASE_URL}/api/v1/lessons`);
+        const run = async () => {
+            const res = await fetchLessonsApi(null, 1, 1000);
             const data = await res.json();
             setLessonList(data.data.content);
         };
-        fetchLessons();
+        run();
     }, []);
 
     // Thêm useEffect để log dataSource
@@ -95,9 +92,7 @@ const QuestionPage = () => {
         if (!id) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/questions/${id}`, {
-                method: 'DELETE',
-            });
+            const res = await deleteQuestionById(id);
 
             if (res.ok) {
                 message.success('Delete question successfully');
@@ -121,15 +116,7 @@ const QuestionPage = () => {
     const fetchUploadData = async (questionId: number) => {
         try {
             console.log("Fetching data for questionId:", questionId);
-            const res = await fetch(`${API_BASE_URL}/api/v1/material/questions/${questionId}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
+            const res = await getMaterialsByQuestion(questionId, localStorage.getItem('admin_token'));
             const data = await res.json();
             if (res.ok) {
                 setUploadData(data.data);
@@ -159,7 +146,7 @@ const QuestionPage = () => {
                     message.warning('Please select questions first');
                     return;
                 }
-                const res = await fetch(`${API_BASE_URL}/api/v1/lessons/${lessonId}/questions`, {
+                const res = await fetch(`/api/v1/lessons/${lessonId}/questions`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -172,7 +159,7 @@ const QuestionPage = () => {
                     reloadTable();
                 }
             } else if (questionId) {
-                const res = await fetch(`${API_BASE_URL}/api/v1/lessons/${lessonId}/questions`, {
+                const res = await fetch(`/api/v1/lessons/${lessonId}/questions`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
@@ -225,12 +212,12 @@ const QuestionPage = () => {
             onFilter: true,
             onFilterDropdownOpenChange: (visible) => {
                 if (!visible) {
-                    const selectedItem = document.querySelector('.ant-dropdown-menu-item-selected');
+                    const selectedItem = document.querySelector('.ant-dropdown-menu-item-selected') as HTMLElement | null;
                     const filterValue = selectedItem?.getAttribute('data-menu-id')?.split('-').pop();
                     console.log("filterValue:", filterValue);
                     setSelectedFilters({
                         ...selectedFilters,
-                        quesType: filterValue || undefined
+                        quesType: (filterValue as any) || undefined
                     });
                 }
             }
@@ -249,12 +236,12 @@ const QuestionPage = () => {
             onFilter: true,
             onFilterDropdownOpenChange: (visible) => {
                 if (!visible) {
-                    const selectedItem = document.querySelector('.ant-dropdown-menu-item-selected');
+                    const selectedItem = document.querySelector('.ant-dropdown-menu-item-selected') as HTMLElement | null;
                     const filterValue = selectedItem?.getAttribute('data-menu-id')?.split('-').pop();
                     console.log("filterValue:", filterValue);
                     setSelectedFilters({
                         ...selectedFilters,
-                        quesType: filterValue || undefined
+                        quesType: (filterValue as any) || undefined
                     });
                 }
             }
@@ -271,7 +258,7 @@ const QuestionPage = () => {
                 <div style={{ padding: 8 }}>
                     <Input
                         placeholder="Search keyword"
-                        value={selectedKeys[0]}
+                        value={selectedKeys[0] as any}
                         onChange={(e) => {
                             const value = e.target.value;
                             setSelectedKeys(value ? [value] : []);
@@ -294,7 +281,7 @@ const QuestionPage = () => {
                                 setSelectedFilters({
                                     quesType: selectedFilters.quesType,
                                     skillType: selectedFilters.skillType,
-                                    keyword: selectedKeys[0]
+                                    keyword: selectedKeys[0] as any
                                 });
                             }}
                             size="small"
@@ -402,9 +389,9 @@ const QuestionPage = () => {
                             cursor: 'pointer',
                         }}
                         onClick={async () => {
-                            setQuesID(entity.id);
+                            setQuesID(entity.id as any);
                             setOpenModalUpload(true);
-                            await fetchUploadData(entity.id); // Lấy dữ liệu trước khi mở modal
+                            await fetchUploadData(entity.id as any); // Lấy dữ liệu trước khi mở modal
 
                         }} />
                 </Space>
@@ -427,7 +414,7 @@ const QuestionPage = () => {
                     pageSize: pageSize,
                     onChange: (page, size) => {
                         setCurrentPage(page); // Cập nhật trang hiện tại
-                        setPageSize(size); // Cập nhật kích thước trang
+                        setPageSize(size as any); // Cập nhật kích thước trang
                     },
                     showSizeChanger: true, // Cho phép thay đổi kích thước trang
                 }}
