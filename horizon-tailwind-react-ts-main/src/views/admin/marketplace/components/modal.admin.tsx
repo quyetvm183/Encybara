@@ -3,7 +3,7 @@ import { Col, Form, Row, message, notification } from "antd";
 import { useState, useEffect } from "react";
 import { DebounceSelect } from "../components/debouce.select";
 import { API_BASE_URL } from "service/api.config";
-
+import { fetchRoleList } from "api/admin";
 export interface IAdmin {
     id?: number;
     name: string;
@@ -20,12 +20,12 @@ export interface IAdmin {
     updatedAt?: string;
 }
 
-interface IRoleOption {
+export interface IRoleOption {
     label: string;
     value: string;
 }
 
-interface IProps {
+export interface IProps {
     openModal: boolean;
     setOpenModal: (v: boolean) => void;
     dataInit?: IAdmin | null;
@@ -120,23 +120,6 @@ const ModalAdmin = (props: IProps) => {
         setOpenModal(false);
     }
 
-
-    async function fetchRoleList(name: string): Promise<IRoleOption[]> {
-        const res = await fetch(`${API_BASE_URL}/api/v1/roles`);
-        const data = await res.json();
-        console.log("data", data);
-        if (data) {
-
-            const list = data.result;
-            const temp = list.map((item: any) => {
-                return {
-                    label: item.name as string,
-                    value: item.id as string
-                }
-            })
-            return temp;
-        } else return [];
-    }
 
     return (
         <>

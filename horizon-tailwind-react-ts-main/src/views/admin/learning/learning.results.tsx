@@ -14,19 +14,19 @@ import {
     Spin,
     App
 } from "antd";
-import { useAuth } from "hooks/useAuth";
+
 import { API_BASE_URL } from "service/api.config";
 import { SearchOutlined, BarChartOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
 import moment from "moment";
 import Access from "../access";
 import { formatScore } from "utils/formatvalue";
-
+import { fetchUsers, fetchLearningResults } from "api/learning";
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface LearningResult {
+export interface LearningResult {
     id: number;
     listeningScore: number;
     speakingScore: number;
@@ -46,7 +46,7 @@ interface LearningResult {
     userName?: string;
 }
 
-interface User {
+export interface User {
     id: number;
     email: string;
     name: string;
@@ -56,14 +56,13 @@ interface User {
     englishlevel: string | null;
 }
 
-interface CombinedLearningResult extends LearningResult {
+export interface CombinedLearningResult extends LearningResult {
     user: User;
 }
 
 const ALL_USERS = -1;
 
 const LearningResults: React.FC = () => {
-    const { token } = useAuth();
     const [results, setResults] = useState<CombinedLearningResult[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
@@ -71,124 +70,33 @@ const LearningResults: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | undefined>(ALL_USERS);
 
-    const fetchUsers = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/users`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch users");
-            }
-
-            const data = await response.json();
-            const userList = data.result || [];
-            setUsers(userList);
-            setSelectedUserId(ALL_USERS);
-            await fetchLearningResults(ALL_USERS, userList);
-        } catch (error) {
-            console.error("Error fetching users:", error);
-            setLoading(false);
-        }
-    };
-
-    const fetchLearningResults = async (userId: number, userList: User[] = users) => {
-        setLoading(true);
-        try {
-            const endpoint = userId === ALL_USERS
-                ? `${API_BASE_URL}/api/v1/admin/learning-results`
-                : `${API_BASE_URL}/api/v1/learning-results/user/${userId}`;
-
-            const response = await fetch(endpoint, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch learning results`);
-            }
-
-            const responseData = await response.json();
-
-            if (userId === ALL_USERS) {
-                if (responseData && responseData.data.content && Array.isArray(responseData.data.content)) {
-                    const combinedResults: CombinedLearningResult[] = await Promise.all(
-                        responseData.data.content.map(async (result: LearningResult) => {
-                            const user = userList.find(u => u.id === result.userId) || {
-                                id: result.userId || 0,
-                                name: 'Unknown',
-                                email: '',
-                                phone: null,
-                                speciField: null,
-                                avatar: null,
-                                englishlevel: null
-                            };
-
-                            return {
-                                ...result,
-                                user
-                            };
-                        })
-                    );
-
-                    setResults(combinedResults);
-                } else {
-                    setResults([]);
-                }
-            } else {
-                if (responseData && responseData.data) {
-                    const selectedUser = userList.find(u => u.id === userId) || {
-                        id: userId,
-                        name: 'Unknown',
-                        email: '',
-                        phone: null,
-                        speciField: null,
-                        avatar: null,
-                        englishlevel: null
-                    };
-
-                    if (Array.isArray(responseData.data)) {
-                        const combinedResults: CombinedLearningResult[] = responseData.data.map((result: LearningResult) => ({
-                            ...result,
-                            user: selectedUser
-                        }));
-                        setResults(combinedResults);
-                    } else {
-                        const combinedResult: CombinedLearningResult = {
-                            ...responseData.data,
-                            user: selectedUser
-                        };
-                        setResults([combinedResult]);
-                    }
-                } else {
-                    setResults([]);
-                }
-            }
-        } catch (error) {
-            console.error(`Error fetching learning results:`, error);
-            setResults([]);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     useEffect(() => {
-        fetchUsers();
+        const userReq = async () => {
+            const req = await fetchUsers()
+            setUsers(req);
+            setSelectedUserId(ALL_USERS);
+            await fetchLearningResults(ALL_USERS, req)
+        }
+        userReq()
     }, []);
 
     useEffect(() => {
-        if (selectedUserId !== undefined && selectedUserId !== null) {
-            if (users.length > 0) {
-                fetchLearningResults(selectedUserId);
+        const learningReq = async () => {
+            try {
+                setLoading(true)
+                if (selectedUserId !== undefined && selectedUserId !== null) {
+                    if (users.length > 0) {
+                        const learnReq = await fetchLearningResults(selectedUserId, users)
+                        setResults(learnReq);
+                    }
+                }
+            } catch (error) {
+                console.log("Error");
+                setLoading(false)
             }
         }
+        learningReq()
     }, [selectedUserId]);
 
     const handleViewDetail = (result: CombinedLearningResult) => {
