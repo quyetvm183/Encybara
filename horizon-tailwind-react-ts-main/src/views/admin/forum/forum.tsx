@@ -7,6 +7,7 @@ import { API_BASE_URL } from 'service/api.config';
 import { Comment as AntdComment } from '@ant-design/compatible';
 import { FaDiscord, FaComments, FaStar } from 'react-icons/fa';
 import { fetchLessonDiscussions, fetchAllCourseReviews } from 'api/forum';
+
 export interface IDiscussionStats {
     totalDiscussions: number;
     totalComments: number;
@@ -19,7 +20,6 @@ export interface IDiscussionStats {
     };
 }
 
-export interface IDiscussionReply {
 export interface IDiscussionReply {
     id: number;
     userId: number;
@@ -35,7 +35,6 @@ export interface IDiscussionReply {
     parentId?: number;
 }
 
-export interface IDiscussion extends IDiscussionReply {
 export interface IDiscussion extends IDiscussionReply {
     status: 'ACTIVE' | 'PENDING' | 'REPORTED' | 'HIDDEN';
 }
@@ -58,13 +57,11 @@ export interface ICourseReview {
     id: number;
     userId: number;
     courseId: number;
-    reContent: string;    // Nội dung đánh giá
-    reSubject: string;    // Chủ đề đánh giá
-    numStar: number;      // Số sao đánh giá
-    numLike: number;      // Số lượt thích
+    reContent: string;
+    reSubject: string;
+    numStar: number;
+    numLike: number;
     status: 'CONTRIBUTING' | 'CONTENT' | 'MISTAKE';
-
-    // Thêm các trường bổ sung nếu cần
     author?: {
         id: number;
         name: string;
@@ -73,41 +70,36 @@ export interface ICourseReview {
     course?: {
         id: number;
         name: string;
-        // thêm các thông tin khác của course nếu cần
     };
     createdAt?: Date;
 }
 
-export interface ILesson {
 export interface ILesson {
     id: number;
     name: string;
     discussions: IDiscussion[];
 }
 
-
 const ForumManagement = () => {
     const [activeTab, setActiveTab] = useState('discussions');
-    const [openModal, setOpenModal] = useState(false);
 
     const DiscussionsTab = () => {
         const [loading, setLoading] = useState(false);
         const [lessons, setLessons] = useState<ILesson[]>([]);
 
-
         useEffect(() => {
             const fetchData = async () => {
-                const lessonDiscussData = await fetchLessonDiscussions();
-                setLessons(lessonDiscussData.filter(Boolean));
+                setLoading(true);
+                try {
+                    const lessonDiscussData = await fetchLessonDiscussions();
+                    setLessons(lessonDiscussData.filter(Boolean));
+                } catch (error) {
+                    console.error('Error fetching discussions:', error);
+                } finally {
+                    setLoading(false);
+                }
             };
             fetchData();
-
-            const fetchData = async () => {
-                const lessonDiscussData = await fetchLessonDiscussions();
-                setLessons(lessonDiscussData.filter(Boolean));
-            };
-            fetchData();
-
         }, []);
 
         return (
@@ -171,7 +163,7 @@ const ForumManagement = () => {
                                         >
                                             <AntdComment
                                                 author={discussion.author?.name}
-                                                avatar={<Avatar src={lesson.discussions[0].author?.avatar} />}
+                                                avatar={<Avatar src={discussion.author?.avatar} />}
                                                 content={discussion.content}
                                                 datetime={discussion.createdAt}
                                                 actions={[
@@ -188,9 +180,9 @@ const ForumManagement = () => {
                                                     <Collapse.Panel header="View replies" key="1">
                                                         {discussion.replies?.map(reply => (
                                                             <AntdComment
-
+                                                                key={reply.id}
                                                                 author={reply.author?.name}
-                                                                avatar={<Avatar src={lesson.discussions[0].author?.avatar} />}
+                                                                avatar={<Avatar src={reply.author?.avatar} />}
                                                                 content={reply.content}
                                                                 datetime={reply.createdAt}
                                                                 actions={[
@@ -216,7 +208,6 @@ const ForumManagement = () => {
 
     const CourseReviewsTab = () => {
         const [loading, setLoading] = useState(false);
-        const [courses, setCourses] = useState<any[]>([]);
         const [reviews, setReviews] = useState<ICourseReview[]>([]);
         const [stats, setStats] = useState<ICourseReviewStats>({
             totalReviews: 0,
@@ -230,29 +221,50 @@ const ForumManagement = () => {
             },
             topCourses: []
         });
-        const [pageSize, setPageSize] = useState<number>(10); // Kích thước trang
-        const [currentPage, setCurrentPage] = useState<number>(1); // Trang hiện tại
-        const [total, setTotal] = useState<number>(0); // Thêm state cho tổng số lượng bản ghi
+
+        // Pagination states
+        const [pagination, setPagination] = useState({
+            current: 1,
+            pageSize: 10,
+            total: 0,
+            showSizeChanger: true,
+            showTotal: (total: number, range: [number, number]) =>
+                `${range[0]}-${range[1]} of ${total} reviews`,
+            pageSizeOptions: ['5', '10', '20', '50']
+        });
 
         useEffect(() => {
             const fetchData = async () => {
+                setLoading(true);
                 try {
                     const { reviews: allReviews, stats: reviewStats } = await fetchAllCourseReviews();
-                    setReviews(allReviews)
-                    setStats(reviewStats)
+                    setReviews(allReviews);
+                    setStats(reviewStats);
+                    setPagination(prev => ({
+                        ...prev,
+                        total: allReviews.length
+                    }));
+                } catch (error) {
+                    console.error("Error when fetch data:", error);
+                } finally {
+                    setLoading(false);
                 }
-                catch (error) {
-                    throw Error("Error when fetch data")
-                }
-            }
+            };
             fetchData();
         }, []);
+
+        const handleTableChange = (page: number, size: number) => {
+            setPagination(prev => ({
+                ...prev,
+                current: page,
+                pageSize: size
+            }));
+        };
 
         const renderReviewContent = (record: ICourseReview) => (
             <Space direction="vertical">
                 <div>
                     <span style={{ fontWeight: 500 }}>{record.course?.name}</span>
-
                     {record.status === 'MISTAKE' && (
                         <Tag color="red" style={{ marginLeft: 8 }}>
                             Reported
@@ -264,7 +276,6 @@ const ForumManagement = () => {
                     <span><LikeOutlined /> {record.numLike} likes</span>
                 </Space>
             </Space>
-
         );
 
         return (
@@ -294,7 +305,7 @@ const ForumManagement = () => {
                                     allowHalf
                                     style={{
                                         fontSize: 14,
-                                        color: '#fadb14' // Màu vàng của antd
+                                        color: '#fadb14'
                                     }}
                                 />
                             </Card>
@@ -359,7 +370,6 @@ const ForumManagement = () => {
                                                         defaultValue={course.rating}
                                                         style={{ fontSize: 12 }}
                                                     />
-
                                                 </Space>
                                             </div>
                                         </Card>
@@ -374,13 +384,11 @@ const ForumManagement = () => {
                 <Table
                     loading={loading}
                     dataSource={reviews}
-                    pagination={
-                        {
-                            pageSize: 4,
-                            total: reviews.length,
-                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} reviews`
-                        }
-                    }
+                    pagination={{
+                        ...pagination,
+                        onChange: handleTableChange,
+                        onShowSizeChange: handleTableChange
+                    }}
                     columns={[
                         {
                             title: 'Review',
@@ -397,7 +405,7 @@ const ForumManagement = () => {
                                             <>
                                                 <img
                                                     src={record.author.avatar}
-
+                                                    alt={record.author.name}
                                                     style={{ width: 32, height: 32, borderRadius: '50%' }}
                                                 />
                                                 <span>{record.author.name}</span>
@@ -423,18 +431,16 @@ const ForumManagement = () => {
                         {
                             title: 'Rating',
                             key: 'numStar',
-                            render: (_, record) => {
-                                return (
-                                    <Rate disabled defaultValue={record.numStar} style={{ marginLeft: 8 }} />
-
-                                )
-                            }
+                            render: (_, record) => (
+                                <Rate disabled defaultValue={record.numStar} style={{ marginLeft: 8 }} />
+                            )
                         }
                     ]}
                 />
             </div>
         );
     };
+
     return (
         <div>
             <div style={{
