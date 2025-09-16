@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import UserProfile from "./components/UserProfile";
-import { API_BASE_URL } from "service/api.config";
 import { useAuth } from "hooks/useAuth";
 import Access from "../access";
 import { App } from 'antd';
+import { userApiService, User, Review, Schedule } from "api/user";
+import { courseApiService, Course } from "api/course";
 const UserProfilePage: React.FC = () => {
     const { message, notification } = App.useApp();
     const { token } = useAuth();
     const { userId } = useParams<{ userId: string }>();
-    const [userData, setUserData] = useState<any>(null);
-    const [coursesData, setCoursesData] = useState<any>([]);
+    const [userData, setUserData] = useState<User | null>(null);
+    const [coursesData, setCoursesData] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [reviewsData, setReviewsData] = useState<any>([]);
-    const [scheduleData, setScheduleData] = useState<any>([]);
+    const [reviewsData, setReviewsData] = useState<Review[]>([]);
+    const [scheduleData, setScheduleData] = useState<Schedule[]>([]);
 
     useEffect(() => {
         console.log("Fetched User ID:", userId);
@@ -28,67 +29,34 @@ const UserProfilePage: React.FC = () => {
 
         const fetchUserData = async () => {
             try {
-                const userResponse = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                const userData = await userResponse.json();
+                setLoading(true);
 
-                console.log("User Data:", userData);
-                const getCourses = await fetch(`${API_BASE_URL}/api/v1/enrollments/user/${userId}?page=1&size=100`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                const getCoursesData = await getCourses.json();
+                // Fetch user data
+                const user = await userApiService.getUserById(parseInt(userId));
+                setUserData(user);
 
-                const courseIds = getCoursesData.data.content.map((item: any) => item.courseId);
-                const courseDetails = await Promise.all(
-                    courseIds.map(async (id: number) => {
-                        const courseResponse = await fetch(`${API_BASE_URL}/api/v1/courses/${id}`, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        });
-                        const courseData = await courseResponse.json();
-                        return courseData.data;
-                    })
-                );
+                // Fetch user enrollments and get course details
+                const enrollments = await userApiService.getUserEnrollments(parseInt(userId));
+                const courseIds = enrollments.content.map(item => item.courseId);
 
-                console.log("Course Details:", courseDetails);
+                if (courseIds.length > 0) {
+                    const courses = await courseApiService.getCoursesByIds(courseIds);
+                    setCoursesData(courses);
+                }
 
-                const reviewData = await fetch(`${API_BASE_URL}/api/v1/reviews/user/${userId}?page=1&size=100`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                const revdata = await reviewData.json();
+                // Fetch user reviews and schedules in parallel
+                const [reviews, schedules] = await Promise.all([
+                    userApiService.getUserReviews(parseInt(userId)),
+                    userApiService.getUserSchedules(parseInt(userId))
+                ]);
 
-                const scheduleData = await fetch(`${API_BASE_URL}/api/v1/schedules/user/${userId}?page=1&size=100`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                const scheData = await scheduleData.json();
-                setScheduleData(scheData.data.content);
-                setReviewsData(revdata.data.content);
-                // Cập nhật state với dữ liệu nhận được
-                setUserData(userData);
-                setCoursesData(courseDetails || []);
+                setReviewsData(reviews);
+                setScheduleData(schedules);
+
             } catch (error) {
                 console.error("Error fetching data:", error);
                 setError("Failed to fetch data");
+                message.error("Failed to load user data");
             } finally {
                 setLoading(false);
             }
@@ -100,21 +68,37 @@ const UserProfilePage: React.FC = () => {
     }, [token, userId]);
 
     if (loading) {
-        return <div>Loading...</div>;
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="text-gray-500">Loading user profile...</div>
+            </div>
+        );
     }
 
     if (error) {
-        return <div>Error: {error}</div>;
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="text-red-500">Error: {error}</div>
+            </div>
+        );
     }
 
-    console.log("User Data before passing to UserProfile:", userData, coursesData);
+    if (!userData) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="text-gray-500">User not found</div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6">
-
-            <UserProfile user={userData} courses={coursesData} reviews={reviewsData} schedules={scheduleData} />
-
-
+            <UserProfile
+                user={userData}
+                courses={coursesData}
+                reviews={reviewsData}
+                schedules={scheduleData}
+            />
         </div>
     );
 };
