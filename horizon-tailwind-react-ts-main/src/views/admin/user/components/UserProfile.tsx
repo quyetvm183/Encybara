@@ -6,27 +6,11 @@ import {
     flexRender,
 } from "@tanstack/react-table";
 import { useAuth } from "hooks/useAuth";
-import { API_BASE_URL } from "service/api.config";
 import { List, Card, Button, notification, message } from "antd";
 import ResultModal, { StudyResult } from './module.result';
-
-interface Review {
-    id: number;
-    userId: number;
-    courseId: number;
-    reContent: string;
-    reSubject: string;
-    numStar: number;
-    numLike: number;
-    status: string;
-};
-interface Schedule {
-    id: number;
-    userId: number;
-    courseId: number;
-    isDaily: boolean;
-    scheduleTime: string;
-}
+import { userApiService, Review, Schedule, StudyResult as UserStudyResult } from "api/user";
+import { courseApiService, Course } from "api/course";
+import { lessonApiService, Lesson } from "api/lesson";
 
 type UserProfileProps = {
     user: {
@@ -36,44 +20,24 @@ type UserProfileProps = {
         speciField: string;
         englishlevel: string;
     };
-    courses: {
-        id: number;
-        name: string;
-        intro: string;
-        diffLevel: number;
-        recomLevel: number;
-        courseType: string;
-        speciField: string;
-    }[];
+    courses: Course[];
     reviews: Review[];
     schedules: Schedule[];
 };
 
 const UserProfile: React.FC<UserProfileProps> = ({ user, courses, reviews, schedules }) => {
     const { token } = useAuth();
-    const [lessons, setLessons] = useState<any[]>([]);
+    const [lessons, setLessons] = useState<Lesson[]>([]);
     const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
-    const [courseDetails, setCourseDetails] = useState<any[]>([]);
-    const [scheduleDetails, setScheduleDetails] = useState<any[]>([]);
+    const [courseDetails, setCourseDetails] = useState<Record<number, Course>>({});
     const [isResultModalOpen, setIsResultModalOpen] = useState(false);
     const [selectedLessonResults, setSelectedLessonResults] = useState<StudyResult[]>([]);
-    const handleViewResults = async (lesson: any) => {
+    const [loading, setLoading] = useState(false);
+    const handleViewResults = async (lesson: Lesson) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/v1/lesson-results/user/${user.id}/lesson/${lesson.id}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!res.ok) {
-                throw new Error('Failed to fetch results');
-            }
-
-            const data = await res.json();
-            console.log("data:", data.data.content);
-            setSelectedLessonResults(data.data.content);
+            setLoading(true);
+            const results = await userApiService.getLessonResults(user.id, lesson.id);
+            setSelectedLessonResults(results);
             setIsResultModalOpen(true);
         } catch (error) {
             console.error("Error fetching lesson results:", error);
@@ -81,6 +45,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, courses, reviews, sched
                 message: 'Error',
                 description: 'Failed to fetch lesson results',
             });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -104,7 +70,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, courses, reviews, sched
         });
     };
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchCourseDetails = async () => {
             try {
                 // Lấy courseIds từ cả reviews và schedules
                 const courseIdsFromReviews = reviews ? reviews.map(review => review.courseId) : [];
@@ -114,36 +80,23 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, courses, reviews, sched
                 const allCourseIds = [...new Set([...courseIdsFromReviews, ...courseIdsFromSchedules])];
 
                 if (allCourseIds.length > 0) {
-                    const coursesPromises = allCourseIds.map(courseId =>
-                        fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                            }
-                        }).then(res => res.json())
-                    );
+                    const courses = await courseApiService.getCoursesByIds(allCourseIds);
 
-                    const coursesResponses = await Promise.all(coursesPromises);
-
-                    // Chuyển đổi mảng responses thành object với key là courseId
-                    const coursesMap = coursesResponses.reduce((acc, response) => {
-                        if (response.data) {
-                            acc[response.data.id] = response.data;
-                        }
+                    // Chuyển đổi mảng courses thành object với key là courseId
+                    const coursesMap = courses.reduce((acc, course) => {
+                        acc[course.id] = course;
                         return acc;
-                    }, {});
+                    }, {} as Record<number, Course>);
 
                     setCourseDetails(coursesMap);
-
                 }
             } catch (error) {
-                console.error("Error fetching courses:", error);
+                console.error("Error fetching course details:", error);
             }
         };
 
-        fetchData();
-    }, [reviews, schedules, token]);
+        fetchCourseDetails();
+    }, [reviews, schedules]);
 
     const table = useReactTable({
         data: courses,
@@ -153,34 +106,15 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, courses, reviews, sched
 
     const fetchLessonsByCourseId = async (courseId: number) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-            const data = await response.json();
-            const lessonIds = data.data.lessonIds;
-
-            const lessonDetails = await Promise.all(
-                lessonIds.map(async (id: number) => {
-                    const lessonResponse = await fetch(`${API_BASE_URL}/api/v1/lessons/${id}`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json',
-                        },
-                    });
-                    const lessonData = await lessonResponse.json();
-                    return lessonData.data;
-                })
-            );
-
-            setLessons(lessonDetails);
+            setLoading(true);
+            const lessons = await lessonApiService.getLessonsByCourseId(courseId);
+            setLessons(lessons);
             setSelectedCourseId(courseId);
         } catch (error) {
+            console.error("Error fetching lessons:", error);
             message.error("Don't have data to show!");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -288,62 +222,67 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, courses, reviews, sched
                             <h3 className="text-xl font-bold">List Lessons</h3>
                             <Button type="link" onClick={() => setSelectedCourseId(null)}>Hide</Button>
                         </div>
-                        <List
-                            grid={{ gutter: 16, column: 2 }}
-                            dataSource={lessons}
-                            renderItem={lesson => (
-                                <List.Item>
-                                    <Card
-                                        title={<span className="font-semibold text-lg">{lesson.name}</span>}
-                                        className="hover:shadow-lg transition-shadow duration-300"
-                                        style={{
-                                            height: 'auto',
-                                            minHeight: 150,
-                                            borderRadius: '12px',
-                                            overflow: 'hidden',
-                                            border: '1px solid #e5e7eb',
-                                        }}
-                                        headStyle={{
-                                            background: '#f9fafb',
-                                            borderBottom: '1px solid #e5e7eb',
-                                            borderTopLeftRadius: '12px',
-                                            borderTopRightRadius: '12px',
-                                            padding: '12px 16px',
-                                        }}
-                                        bodyStyle={{
-                                            padding: '16px',
-                                        }}
-                                    >
-                                        <div className="flex flex-col h-full">
-                                            {/* Skill Type */}
-                                            <div className="mb-3">
-                                                <span className="inline-block px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-600">
-                                                    {lesson.skillType}
-                                                </span>
+                        {loading ? (
+                            <div className="flex justify-center items-center py-8">
+                                <div className="text-gray-500">Loading lessons...</div>
+                            </div>
+                        ) : (
+                            <List
+                                grid={{ gutter: 16, column: 2 }}
+                                dataSource={lessons}
+                                renderItem={lesson => (
+                                    <List.Item>
+                                        <Card
+                                            title={<span className="font-semibold text-lg">{lesson.name}</span>}
+                                            className="hover:shadow-lg transition-shadow duration-300"
+                                            style={{
+                                                height: 'auto',
+                                                minHeight: 150,
+                                                borderRadius: '12px',
+                                                overflow: 'hidden',
+                                                border: '1px solid #e5e7eb',
+                                            }}
+                                            headStyle={{
+                                                background: '#f9fafb',
+                                                borderBottom: '1px solid #e5e7eb',
+                                                borderTopLeftRadius: '12px',
+                                                borderTopRightRadius: '12px',
+                                                padding: '12px 16px',
+                                            }}
+                                            bodyStyle={{
+                                                padding: '16px',
+                                            }}
+                                        >
+                                            <div className="flex flex-col h-full">
+                                                {/* Skill Type */}
+                                                <div className="mb-3">
+                                                    <span className="inline-block px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-600">
+                                                        {lesson.skillType}
+                                                    </span>
+                                                </div>
+
+                                                {/* View Results Button */}
+                                                <div className="mt-auto">
+                                                    <Button
+                                                        type="primary"
+                                                        onClick={() => handleViewResults(lesson)}
+                                                        className="w-50"
+                                                        loading={loading}
+                                                        style={{
+                                                            backgroundColor: '#2563eb',
+                                                            borderColor: '#2563eb',
+                                                            color: '#fff',
+                                                        }}
+                                                    >
+                                                        View Results
+                                                    </Button>
+                                                </div>
                                             </div>
-
-
-
-                                            {/* View Results Button */}
-                                            <div className="mt-auto">
-                                                <Button
-                                                    type="primary"
-                                                    onClick={() => handleViewResults(lesson)}
-                                                    className="w-50"
-                                                    style={{
-                                                        backgroundColor: '#2563eb',
-                                                        borderColor: '#2563eb',
-                                                        color: '#fff',
-                                                    }}
-                                                >
-                                                    View Results
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                </List.Item>
-                            )}
-                        />
+                                        </Card>
+                                    </List.Item>
+                                )}
+                            />
+                        )}
                     </div>
                 )}
             </div>

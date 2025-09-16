@@ -1,5 +1,4 @@
 import { API_BASE_URL } from "service/api.config";
-import { Lesson } from "views/admin/profile/components/LessonList";
 
 export const fetchCourseById = async (courseId: number, token: string | null) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`,
@@ -117,4 +116,118 @@ export const createLesson = async (lesson: Partial<Lesson>, token: string | null
     });
     return response;
 };
+import ApiService from '../service/api.service';
+
+// Types
+export interface Lesson {
+    id: number;
+    name: string;
+    skillType: string;
+    description?: string;
+    content?: string;
+    difficulty?: number;
+    courseId?: number;
+}
+
+export interface ApiResponse<T> {
+    result?: T;
+    data?: T;
+    message?: string;
+    success?: boolean;
+    content?: T;
+}
+
+// Lesson API service
+class LessonApiService {
+    private api = ApiService();
+
+    // Get all lessons
+    async getLessons(): Promise<Lesson[]> {
+        try {
+            const response = await this.api.get<ApiResponse<Lesson[]>>('/api/v1/lessons');
+            return response.result || response.data || [];
+        } catch (error) {
+            console.error('Error fetching lessons:', error);
+            throw error;
+        }
+    }
+
+    // Get lesson by ID
+    async getLessonById(id: number): Promise<Lesson> {
+        try {
+            const response = await this.api.get<ApiResponse<Lesson>>(`/api/v1/lessons/${id}`);
+            return response.result || response.data;
+        } catch (error) {
+            console.error('Error fetching lesson:', error);
+            throw error;
+        }
+    }
+
+    // Get multiple lessons by IDs
+    async getLessonsByIds(ids: number[]): Promise<Lesson[]> {
+        try {
+            const lessonsPromises = ids.map(id => this.getLessonById(id));
+            const lessons = await Promise.all(lessonsPromises);
+            return lessons;
+        } catch (error) {
+            console.error('Error fetching lessons by IDs:', error);
+            throw error;
+        }
+    }
+
+    // Get lessons by course ID
+    async getLessonsByCourseId(courseId: number): Promise<Lesson[]> {
+        try {
+            // First get the course to get lesson IDs
+            const courseResponse = await this.api.get<ApiResponse<{ lessonIds: number[] }>>(`/api/v1/courses/${courseId}`);
+            const lessonIds = courseResponse.data?.lessonIds || courseResponse.result?.lessonIds || [];
+
+            if (lessonIds.length === 0) {
+                return [];
+            }
+
+            // Then get the lesson details
+            return await this.getLessonsByIds(lessonIds);
+        } catch (error) {
+            console.error('Error fetching lessons by course ID:', error);
+            throw error;
+        }
+    }
+
+    // Create new lesson
+    async createLesson(lessonData: Omit<Lesson, 'id'>): Promise<Lesson> {
+        try {
+            const response = await this.api.post<ApiResponse<Lesson>>('/api/v1/lessons', lessonData);
+            return response.result || response.data;
+        } catch (error) {
+            console.error('Error creating lesson:', error);
+            throw error;
+        }
+    }
+
+    // Update lesson
+    async updateLesson(id: number, lessonData: Partial<Lesson>): Promise<Lesson> {
+        try {
+            const response = await this.api.put<ApiResponse<Lesson>>(`/api/v1/lessons/${id}`, lessonData);
+            return response.result || response.data;
+        } catch (error) {
+            console.error('Error updating lesson:', error);
+            throw error;
+        }
+    }
+
+    // Delete lesson
+    async deleteLesson(id: number): Promise<void> {
+        try {
+            await this.api.delete(`/api/v1/lessons/${id}`);
+        } catch (error) {
+            console.error('Error deleting lesson:', error);
+            throw error;
+        }
+    }
+}
+
+// Export singleton instance
+export const lessonApiService = new LessonApiService();
+export default lessonApiService;
 
