@@ -1,8 +1,8 @@
-import { IPermission } from "api/permission";
+import { IPermission } from "views/admin/permission/components/modal.permission";
 import { FooterToolbar, ModalForm, ProCard, ProFormSelect, ProFormSwitch, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
 import { Col, Form, Row, message, notification } from "antd";
+import { API_BASE_URL } from "service/api.config";
 import ModuleApi from "./modal.api";
-import { createRole, updateRole } from "api/role";
 
 export interface IRole {
     id?: number;
@@ -32,7 +32,7 @@ const ModalRole = (props: IProps) => {
 
     const submitRole = async (valuesForm: any) => {
         const { description, active, name, permissions } = valuesForm;
-        const checkedPermissions: Array<{ id: number }> = [];
+        const checkedPermissions = [];
 
         if (permissions) {
             for (const key in permissions) {
@@ -50,7 +50,15 @@ const ModalRole = (props: IProps) => {
             permissions: checkedPermissions
         };
 
-        const res = await (singleRole?.id ? updateRole(role) : createRole(role));
+        console.log("role:", role);
+
+        const res = await fetch(`${API_BASE_URL}/api/v1/roles`, {
+            method: singleRole?.id ? "PUT" : "POST",
+            body: JSON.stringify(role),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
         const data = await res.json();
         if (res.ok) {

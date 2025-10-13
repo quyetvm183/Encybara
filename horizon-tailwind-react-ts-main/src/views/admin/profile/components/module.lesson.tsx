@@ -4,7 +4,7 @@ import { Col, Form, Row, message, notification } from "antd";
 import { useEffect, useState } from "react";
 import { CheckSquareOutlined } from "@ant-design/icons";
 import { useAuth } from "hooks/useAuth";
-import { addLessonQuestions, createLesson, fetchQuestions, removeLessonQuestion, updateLessonById } from "api/lesson";
+import lessonService from "../../../../service/lesson.service";
 
 interface IProps {
     openModal: boolean;
@@ -33,28 +33,29 @@ const ModuleLesson = (props: IProps) => {
     }, [listLesson, form]);
 
     useEffect(() => {
-        const run = async () => {
+        const fetchQuestions = async () => {
+            if (!listLesson?.skillType) return;
+            
             try {
-                const response = await fetchQuestions(token, 1, 1000);
-                const data = await response.json();
-                const filteredQuestions = data.data.content
-                    .filter((q: any) => q.skillType === listLesson?.skillType)
-                    .map((q: any) => ({
-                        label: q.quesContent,
-                        value: q.id,
-                    }));
-                setQuestions(filteredQuestions);
+                const questionsData = await lessonService.getQuestionsBySkillType(listLesson.skillType);
+                const formattedQuestions = questionsData.map((q: any) => ({
+                    label: q.quesContent,
+                    value: q.id,
+                }));
+                
+                setQuestions(formattedQuestions);
             } catch (error) {
                 console.error("Error fetching questions:", error);
+                message.error("Failed to fetch questions");
             }
         };
-        run();
-    }, [token, selectedQuestionIds, listLesson?.skillType]);
+
+        fetchQuestions();
+    }, [listLesson?.skillType]);
 
     const handleReset = async () => {
         form.resetFields();
         setOpenModal(false);
-        // @ts-ignore - allow null to clear
         setListLesson(null);
     }
     const handleQuestionChange = async (newSelectedIds: number[]) => {
@@ -62,75 +63,50 @@ const ModuleLesson = (props: IProps) => {
         const addedIds = newSelectedIds.filter(id => !selectedQuestionIds.includes(id));
         const removedIds = selectedQuestionIds.filter(id => !newSelectedIds.includes(id));
 
-        if (addedIds.length > 0 && listLesson?.id) {
-            try {
-                const response = await addLessonQuestions(listLesson.id, addedIds, token);
-                if (response.ok) {
-                    message.success("Add question successfully");
-                } else {
-                    const data = await response.json();
-                    message.error(`Add question failed: ${data.message}`);
-                }
-            } catch (error) {
-                console.error("Error adding question:", error);
-                message.error("Add question failed");
-            }
-        }
+        if (!listLesson?.id) return;
 
-        if (removedIds.length > 0 && listLesson?.id) {
-            try {
+        try {
+            if (addedIds.length > 0) {
+                await lessonService.addQuestionsToLesson(listLesson.id, addedIds);
+                message.success("Questions added successfully");
+            }
+
+            if (removedIds.length > 0) {
                 for (const questionId of removedIds) {
-                    const response = await removeLessonQuestion(listLesson.id, questionId, token);
-                    if (response.ok) {
-                        message.success(`Delete question ${questionId} successfully`);
-                    } else {
-                        const data = await response.json();
-                        message.error(`Delete question ${questionId} failed: ${data.message}`);
-                    }
+                    await lessonService.removeQuestionFromLesson(listLesson.id, questionId);
                 }
-            } catch (error) {
-                console.error("Error removing question:", error);
-                message.error("Delete question failed");
+                message.success(`Questions removed successfully`);
             }
-        }
 
-        setSelectedQuestionIds(newSelectedIds);
+            setSelectedQuestionIds(newSelectedIds);
+        } catch (error) {
+            console.error("Error updating questions:", error);
+            message.error("Failed to update questions");
+        }
     };
     const submitLesson = async (values: any) => {
-        const { name, skillType, questionIds } = values;
-        const lesson = {
-            name,
-            skillType
-        }
-        if (listLesson?.id) {
-            const res = await updateLessonById(listLesson.id, lesson, token);
-            const data = await res.json();
-            if (res.ok) {
-                message.success("Update lesson successfully");
-                handleReset();
-                reloadTable();
+        const { name, skillType } = values;
+        const lesson = { name, skillType };
+        
+        try {
+            if (listLesson?.id) {
+                await lessonService.updateLesson(listLesson.id, lesson);
+                message.success("Lesson updated successfully");
             } else {
-                notification.error({
-                    message: 'An error occurred',
-                    description: data.message
-                });
+                await lessonService.createLesson(lesson);
+                message.success("Lesson created successfully");
             }
-        } else {
-            const res = await createLesson(lesson, token);
-            const data = await res.json();
-            if (res.ok) {
-                message.success("Create lesson successfully");
-                handleReset();
-                reloadTable();
-            } else {
-                notification.error({
-                    message: 'An error occurred',
-                    description: data.message
-                });
-            }
+            
+            handleReset();
+            reloadTable();
+        } catch (error) {
+            console.error("Error submitting lesson:", error);
+            notification.error({
+                message: 'An error occurred',
+                description: 'Failed to save lesson'
+            });
         }
-
-    }
+    };
     return (
         <>
             <ModalForm

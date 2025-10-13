@@ -1,9 +1,9 @@
 
 import { FooterToolbar, ModalForm, ProCard, ProFormSelect, ProFormSwitch, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
 import { Col, Form, Row, message, notification, Input, Button, Switch, Upload } from "antd";
+import { API_BASE_URL } from "service/api.config";
 import { useEffect, useState } from "react";
 import { CheckCircleOutlined, DeleteOutlined, InboxOutlined, PlusOutlined, VideoCameraOutlined } from "@ant-design/icons";
-import { createQuestion, updateQuestion } from "api/question";
 
 export interface IQuestion {
     id?: number;
@@ -69,7 +69,15 @@ const ModalQuestion = (props: IProps) => {
             quesMaterial
         };
 
-        const res = await (singleQuestion?.id ? updateQuestion(question) : createQuestion(question));
+        console.log("question:", question);
+
+        const res = await fetch(`${API_BASE_URL}/api/v1/questions`, {
+            method: singleQuestion?.id ? "PUT" : "POST",
+            body: JSON.stringify(question),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
         const data = await res.json();
         if (res.ok) {
@@ -127,16 +135,6 @@ const ModalQuestion = (props: IProps) => {
                         />
                     </Col>
                     <Col lg={12} md={12} sm={24} xs={24}>
-                        <ProFormText
-                            label="Keyword"
-                            name="keyword"
-                            rules={[
-                                { required: true, message: 'Please do not leave blank' },
-                            ]}
-                            placeholder="Enter keyword"
-                        />
-                    </Col>
-                    <Col lg={12} md={12} sm={24} xs={24}>
                         <ProFormSelect
                             label="Question Type"
                             name="quesType"
@@ -144,7 +142,9 @@ const ModalQuestion = (props: IProps) => {
                                 MULTIPLE: 'MULTIPLE',
                                 CHOICE: 'CHOICE',
                                 TEXT: 'TEXT',
-                                LISTENING: 'LISTENING'
+                                LISTENING: 'LISTENING',
+                                WRITING: 'WRITING',
+                                SPEAKING: 'SPEAKING'
                             }}
                             rules={[
                                 { required: true, message: 'Please do not leave blank' },

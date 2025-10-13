@@ -1,20 +1,20 @@
 import DataTable from "../permission/components/data.table";
 import { IRole } from './components/modal.role';
-import { IPermission, fetchPermissions } from 'api/permission';
+import { IPermission } from '../permission/components/modal.permission';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Button, Popconfirm, Space, Tag } from "antd";
+import { Button, Popconfirm, Space, Tag, message, notification } from "antd";
 import { useState, useRef, useEffect } from 'react';
 import dayjs from 'dayjs';
 import ModalRole from "./components/modal.role";
 import { ALL_PERMISSIONS } from "../permission/components/modules";
+import { API_BASE_URL } from "service/api.config";
 import Access from "../access";
 import { App } from 'antd';
-import { deleteRoleById, fetchRoles } from "api/role";
 
 const RolePage = () => {
     const { message, notification } = App.useApp();
-    const tableRef = useRef<ActionType>();
+    const tableRef = useRef<ActionType>(null);
 
     const [openModal, setOpenModal] = useState<boolean>(false);
     const [dataInit, setDataInit] = useState<IRole | null>(null);
@@ -35,16 +35,22 @@ const RolePage = () => {
     const [singleRole, setSingleRole] = useState<IRole | null>(null);
 
     useEffect(() => {
-        const load = async () => {
+        const fetchPermissions = async () => {
             try {
-                const response = await fetchPermissions();
+                const response = await fetch(`${API_BASE_URL}/api/v1/permissions`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
                 if (!response.ok) {
                     throw new Error("Failed to fetch permissions");
                 }
                 const data = await response.json();
+                console.log("data:", data.result);
 
-                // Expecting data.result format based on existing code
-                const transformedData = (data.result || []).reduce((acc: any, curr: any) => {
+                // Chuyển đổi dữ liệu
+                const transformedData = data.result.reduce((acc: any, curr: any) => {
                     const moduleIndex = acc.findIndex((item: any) => item.module === curr.module);
                     if (moduleIndex > -1) {
                         acc[moduleIndex].permissions.push(curr);
@@ -60,7 +66,7 @@ const RolePage = () => {
             }
         };
 
-        load();
+        fetchPermissions();
         reloadTable();
     }, []);
 
@@ -68,7 +74,9 @@ const RolePage = () => {
         if (!id) return;
 
         try {
-            const res = await deleteRoleById(id);
+            const res = await fetch(`${API_BASE_URL}/api/v1/roles/${id}`, {
+                method: 'DELETE',
+            });
 
             if (res.ok) {
                 message.success('Delete role successfully');
@@ -92,11 +100,10 @@ const RolePage = () => {
     const reloadTable = async () => {
         setLoading(true);
         try {
-            const res = await fetchRoles({ page: currentPage, size: pageSize });
+            const res = await fetch(`${API_BASE_URL}/api/v1/roles?page=${currentPage}&size=${pageSize}`);
             const data = await res.json();
-            // Expecting data.result and data.meta.total same as previous
-            setDataSource(data.result);
-            setTotal(data.meta.total);
+            setDataSource(data.result); // Cập nhật dataSource
+            setTotal(data.meta.total); // Cập nhật tổng số lượng bản ghi 
 
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -214,7 +221,7 @@ const RolePage = () => {
             <div>
 
                 <DataTable<IRole>
-                    actionRef={tableRef as any}
+                    actionRef={tableRef}
                     headerTitle="List Roles "
                     rowKey="id"
                     loading={loading}
@@ -227,7 +234,7 @@ const RolePage = () => {
                         pageSize: pageSize,
                         onChange: (page, size) => {
                             setCurrentPage(page); // Cập nhật trang hiện tại
-                            setPageSize(size as number); // Cập nhật kích thước trang
+                            setPageSize(size); // Cập nhật kích thước trang
                         },
                         showSizeChanger: true,
                     }
@@ -253,7 +260,7 @@ const RolePage = () => {
                     openModal={openModal}
                     setOpenModal={setOpenModal}
                     reloadTable={reloadTable}
-                    listPermissions={listPermissions as any}
+                    listPermissions={listPermissions}
                     singleRole={singleRole}
                     setSingleRole={setSingleRole}
                 />
