@@ -8,7 +8,19 @@ import Lottie from 'react-lottie';
 import ModalPermission from "../permission/components/modal.permission";
 import { colorMethod, groupByPermission } from "../permission/components/color.method";
 import { API_BASE_URL } from "service/api.config";
-import { deletePermissions, fetchPermissions, IPermission } from "api/permission";
+//import { ALL_PERMISSIONS } from "../permission/components/modules";
+interface IPermission {
+    id?: number;
+    name?: string;
+    apiPath?: string;
+    method?: string;
+    module?: string;
+
+    createdBy?: string;
+    createdAt?: string;
+    updatedAt?: string;
+
+}
 const PermissionPage = () => {
     const [openModal, setOpenModal] = useState<boolean>(false);
     const [dataInit, setDataInit] = useState<IPermission | null>(null);
@@ -29,7 +41,7 @@ const PermissionPage = () => {
     const reloadTable = async () => {
         setLoading(true);
         try {
-            const res = await fetchPermissions();
+            const res = await fetch(`${API_BASE_URL}/api/v1/permissions?page=1&size=1000`);
             const data = await res.json();
             console.log("data", data);
             setDataSource(data.result); // Cập nhật dataSource
@@ -46,13 +58,15 @@ const PermissionPage = () => {
         reloadTable(); // Gọi lại khi component mount hoặc khi currentPage/pageSize thay đổi
     }, [currentPage, pageSize]);
 
-    const tableRef = useRef<ActionType>();
+    const tableRef = useRef<ActionType>(null);
 
     const handleDeletePermission = async (id: number | undefined) => {
         if (!id) return;
 
         try {
-            const res = await deletePermissions(id);
+            const res = await fetch(`${API_BASE_URL}/api/v1/permissions/${id}`, {
+                method: 'DELETE',
+            });
 
             if (res.ok) {
                 message.success('Delete permission successfully');

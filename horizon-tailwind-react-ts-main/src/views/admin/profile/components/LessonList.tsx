@@ -1,10 +1,12 @@
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { useAuth } from "hooks/useAuth";
 import React, { useEffect, useRef, useState } from "react";
-import { Button, message, Popconfirm } from "antd";
+import { Button, message, Popconfirm, Tooltip } from "antd";
 import ModuleLesson from "./module.lesson";
 import { notification } from "antd";
-import { fetchCourseById, addCourseLessons, removeCourseLesson, deleteLessonById } from "api/lesson";
+import lessonService from "../../../../service/lesson.service";
+import { useCache } from "../../../../hooks/useCache";
+
 export interface Lesson {
     id: number;
     name: string;
@@ -20,65 +22,47 @@ interface LessonListProps {
 
 const LessonList: React.FC<LessonListProps> = ({ lessons, courseId, fetchLessons }) => {
     const { token } = useAuth();
+    const { getCacheStats } = useCache();
     const [openModal, setOpenModal] = useState(false);
     const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
     useEffect(() => {
+        // Fetch lessons in the course and set them as selected
         const fetchCourseLessons = async () => {
             try {
-                const response = await fetchCourseById(courseId, token);
-                const data = await response.json();
-                if (response.ok) {
-                    const courseLessonIds = data.data.lessonIds;
-                    setSelectedLessons(courseLessonIds);
-                }
+                const courseDetails = await lessonService.getCourseDetails(courseId);
+                setSelectedLessons(courseDetails.lessonIds || []);
             } catch (error) {
                 console.error("Error fetching course lessons:", error);
+                message.error("Failed to fetch course lessons");
             }
         };
 
         fetchCourseLessons();
-    }, [courseId, token]);
+    }, [courseId]);
     const toggleSelectLesson = async (lessonId: number) => {
         const isSelected = selectedLessons.includes(lessonId);
 
-        if (isSelected) {
-            try {
-                const response = await removeCourseLesson(courseId, lessonId, token);
-
-                if (response.ok) {
-                    setSelectedLessons(prevSelected => prevSelected.filter(id => id !== lessonId));
-                    message.success("Lesson removed successfully");
-                } else {
-                    notification.error({
-                        message: "Error",
-                        description: "Failed to remove lesson",
-                        placement: "topRight",
-                    });
-
-                }
-            } catch (error) {
-                console.error("Error removing lesson:", error);
+        try {
+            if (isSelected) {
+                await lessonService.removeLessonFromCourse(courseId, lessonId);
+                setSelectedLessons(prevSelected => prevSelected.filter(id => id !== lessonId));
+                message.success("Lesson removed successfully");
+            } else {
+                await lessonService.addLessonsToCourse(courseId, [lessonId]);
+                setSelectedLessons(prevSelected => [...prevSelected, lessonId]);
+                notification.success({
+                    message: "Add lesson successfully",
+                    placement: "topLeft",
+                });
             }
-        } else {
-            try {
-                const response = await addCourseLessons(courseId, [lessonId], token);
-                if (response.ok) {
-                    setSelectedLessons(prevSelected => [...prevSelected, lessonId]);
-                    notification.success({
-                        message: "Add lesson successfully",
-                        placement: "topLeft",
-                    });
-                } else {
-                    notification.error({
-                        message: "Error",
-                        description: "Failed to add lesson",
-                        placement: "topRight",
-                    });
-                }
-            } catch (error) {
-                console.error("Error adding lesson:", error);
-            }
+        } catch (error) {
+            console.error("Error toggling lesson:", error);
+            notification.error({
+                message: "Error",
+                description: isSelected ? "Failed to remove lesson" : "Failed to add lesson",
+                placement: "topRight",
+            });
         }
     };
 
@@ -88,15 +72,12 @@ const LessonList: React.FC<LessonListProps> = ({ lessons, courseId, fetchLessons
     };
     const handleDeleteLesson = async (lessonId: number) => {
         try {
-            const response = await deleteLessonById(lessonId, token);
-            if (response.ok) {
-                message.success("Lesson removed successfully");
-                fetchLessons();
-            } else {
-                message.error("Failed to remove lesson");
-            }
+            await lessonService.deleteLesson(lessonId);
+            message.success("Lesson deleted successfully");
+            fetchLessons();
         } catch (error) {
-            console.error("Error removing lesson:", error);
+            console.error("Error deleting lesson:", error);
+            message.error("Failed to delete lesson");
         }
     };
 
@@ -104,7 +85,11 @@ const LessonList: React.FC<LessonListProps> = ({ lessons, courseId, fetchLessons
         <div className="bg-white">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-gray-800">Lesson List</h3>
-                <Button type="primary" className="hover:opacity-90" onClick={() => setOpenModal(true)}>Add Lesson</Button>
+                <div className="flex gap-2">    
+                    <Button type="primary" className="hover:opacity-90" onClick={() => setOpenModal(true)}>
+                        Add Lesson
+                    </Button>
+                </div>
             </div>
 
             <div className="mt-8">
