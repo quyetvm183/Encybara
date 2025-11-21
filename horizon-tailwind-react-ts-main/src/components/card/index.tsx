@@ -1,5 +1,3 @@
-import { JSX } from "react";
-
 function Card(props: {
   variant?: string;
   extra?: string;

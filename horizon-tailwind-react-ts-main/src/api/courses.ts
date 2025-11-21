@@ -2,8 +2,8 @@ import { API_BASE_URL } from "service/api.config";
 import { useAuth } from "hooks/useAuth";
 import { method } from "lodash";
 import { stringify } from "querystring";
-
-export const fetchCourses = async (courseId: number, token : string) => {
+const token = useAuth();
+export const fetchCourses = async (courseId: number) => {
     const courses = fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`, {
         method: 'GET',
         headers: {
@@ -12,7 +12,7 @@ export const fetchCourses = async (courseId: number, token : string) => {
     })
     return courses
 }
-export const updateCourses = async (courses: any, courseId: number, token: string) => {
+export const updateCourses = async (courses: any, courseId: number) => {
     const course = fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`,
         {
             method: 'PUT',
@@ -25,7 +25,7 @@ export const updateCourses = async (courses: any, courseId: number, token: strin
     )
     return course
 }
-export const createCourses = async (courses: any, courseId: number, token: string) => {
+export const createCourses = async (courses: any, courseId: number) => {
     const course = fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`,
         {
             method: 'POST',

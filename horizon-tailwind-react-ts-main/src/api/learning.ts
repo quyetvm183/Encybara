@@ -1,7 +1,8 @@
 import { API_BASE_URL } from "service/api.config";
 import { useAuth } from "hooks/useAuth";
 import { User, LearningResult, CombinedLearningResult } from "views/admin/learning/learning.results";
-const fetchUsers = async (token: string) => {
+const token = useAuth();
+const fetchUsers = async () => {
     try {
         const response = await fetch(`${API_BASE_URL}/api/v1/users`, {
             method: 'GET',
@@ -22,7 +23,7 @@ const fetchUsers = async (token: string) => {
     }
 };
 
-const fetchLearningResults = async (userId: number, userList: User[], token: string) => {
+const fetchLearningResults = async (userId: number, userList: User[]) => {
     try {
         const endpoint = userId === -1
             ? `${API_BASE_URL}/api/v1/admin/learning-results`

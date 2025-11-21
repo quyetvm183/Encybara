@@ -1,5 +1,5 @@
 /* eslint-disable */
-import React, { JSX } from "react";
+import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import DashIcon from "components/icons/DashIcon";
 import Access from "views/admin/access";
