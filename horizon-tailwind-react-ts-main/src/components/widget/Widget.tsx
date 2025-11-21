@@ -1,5 +1,4 @@
 import Card from "components/card";
-import { JSX } from "react";
 
 const Widget = (props: {
   icon: JSX.Element;

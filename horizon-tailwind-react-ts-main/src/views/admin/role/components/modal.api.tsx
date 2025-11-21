@@ -3,7 +3,7 @@ import { ProFormSwitch } from '@ant-design/pro-components';
 import { grey } from '@ant-design/colors';
 import { colorMethod, groupByPermission } from '../../permission/components/color.method';
 import { IRole } from './modal.role';
-import { IPermission } from '../../permission/components/modal.permission';
+import { IPermission } from 'api/permission';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import { useEffect, useMemo } from 'react';
 import type { CollapseProps } from 'antd';
@@ -139,7 +139,7 @@ const ModuleApi = (props: IProps) => {
                                             name={["permissions", value.id]}
                                             fieldProps={{
                                                 defaultChecked: false,
-                                                onChange: (v) => handleSingleCheck(v, (value.id), item.module)
+                                                onChange: (v) => handleSingleCheck(v, (value.id as number), item.module)
                                             }}
                                         />
                                     </div>
@@ -163,7 +163,7 @@ const ModuleApi = (props: IProps) => {
 
     return (
         <Card size="small" bordered={false}>
-            <Collapse items={panels} />
+            <Collapse items={panels as any} />
         </Card>
     );
 };

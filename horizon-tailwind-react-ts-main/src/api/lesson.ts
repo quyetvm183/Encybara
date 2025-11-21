@@ -1,5 +1,4 @@
 import { API_BASE_URL } from "service/api.config";
-import ApiService from '../service/api.service';
 
 export const fetchCourseById = async (courseId: number, token: string | null) => {
     const response = await fetch(`${API_BASE_URL}/api/v1/courses/${courseId}`,
@@ -117,7 +116,7 @@ export const createLesson = async (lesson: Partial<Lesson>, token: string | null
     });
     return response;
 };
-
+import ApiService from '../service/api.service';
 
 // Types
 export interface Lesson {

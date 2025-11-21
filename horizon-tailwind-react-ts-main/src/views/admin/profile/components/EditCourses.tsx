@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "hooks/useAuth";
 import { ModalForm, ProFormSelect, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
 import { Row, Col, message } from "antd";
-import profileService from "../../../../service/profile.service";
-
+import { API_BASE_URL } from "service/api.config";
+import { fetchCourses, createCourses, updateCourses } from "api/courses";
 interface EditCourseProps {
     courseId: number;
     onClose: () => void;
@@ -28,9 +28,14 @@ const EditCourse: React.FC<EditCourseProps> = ({ courseId, onClose, onSuccess })
         const fetchCourse = async () => {
             try {
                 if (courseId) {
-                    const course = await profileService.getCourseById(courseId);
-                    setCourseData(course);
-                } else {
+                    const response = await fetchCourses(courseId);
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch course data");
+                    }
+                    const data = await response.json();
+                    setCourseData(data.data);
+                }
+                else {
                     setCourseData({
                         name: "",
                         intro: "",
@@ -39,36 +44,44 @@ const EditCourse: React.FC<EditCourseProps> = ({ courseId, onClose, onSuccess })
                         courseType: "",
                         speciField: "",
                         group: ""
-                    });
+                    })
+
                 }
             } catch (error) {
                 console.error("Error fetching course data:", error);
                 setError("Failed to fetch course data");
-                message.error("Failed to fetch course data");
             } finally {
                 setLoading(false);
             }
         };
 
         fetchCourse();
-    }, [courseId]);
+    }, [courseId, token]);
 
     const handleSubmit = async (values: any) => {
         try {
             if (courseId) {
-                await profileService.updateCourse(courseId, values);
+                const response = await updateCourses(values, courseId);
+                if (!response.ok) {
+                    throw new Error("Failed to update course");
+                }
+
                 message.success("Course updated successfully!");
+                onSuccess();
+                onClose();
             } else {
-                await profileService.createCourse(values);
-                message.success("Course created successfully!");
+                const response = await createCourses(values, courseId);
+                if (!response.ok) {
+                    throw new Error("Failed to update course");
+                }
+
+                message.success("Course updated successfully!");
+                onSuccess();
+                onClose();
             }
-            
-            onSuccess();
-            onClose();
         } catch (error) {
-            console.error("Error saving course:", error);
-            message.error("Failed to save course");
-            setError("Failed to save course");
+            console.error("Error updating course:", error);
+            setError("Failed to update course");
         }
     };
 

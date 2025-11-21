@@ -1,35 +1,34 @@
 import TableTopCreator from "./components/TableCreator";
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "service/api.config";
 import { App } from 'antd';
-
+import { IAdmin, fetchAdmins } from "api/admin";
 
 const AdminAccount = () => {
-  const { message, notification } = App.useApp();
-  const [tableData, setTableData] = useState<any[]>([]);
+  const { message } = App.useApp();
+  const [tableData, setTableData] = useState<IAdmin[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const reloadTable = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/admins`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const data = await fetchAdmins();
+      setTableData(data);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch data");
+      if (data.length === 0) {
+        message.info("No admins found in the system");
       }
-
-      const data = await response.json();
-
-      setTableData(data.result);
     } catch (error) {
-      console.error("Error fetching data:", error);
-      setError("Failed to fetch data");
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch admin data";
+      setError(errorMessage);
+      console.error("Error fetching admin data:", error);
+
+      message.error({
+        content: "Failed to load admin data. Please try again.",
+        duration: 5
+      });
     } finally {
       setLoading(false);
     }
@@ -41,7 +40,11 @@ const AdminAccount = () => {
 
   return (
     <div className="col-span-1 h-full w-full rounded-xl">
-      <TableTopCreator tableData={tableData} reloadTable={reloadTable} />
+      <TableTopCreator
+        tableData={tableData}
+        reloadTable={reloadTable}
+        loading={loading}
+      />
       <div className="mb-5" />
     </div>
   );

@@ -3,19 +3,8 @@ import { Col, Form, Row, message, notification } from "antd";
 import { ALL_MODULES } from "../components/modules";
 import { useEffect } from "react";
 import { API_BASE_URL } from "service/api.config";
+import { IPermission, updatePermissions, createPermissions } from "api/permission";
 
-export interface IPermission {
-    id?: number;
-    name?: string;
-    apiPath?: string;
-    method?: string;
-    module?: string;
-
-    createdBy?: string;
-    createdAt?: string;
-    updatedAt?: string;
-
-}
 interface IProps {
     openModal: boolean;
     setOpenModal: (v: boolean) => void;
@@ -23,8 +12,6 @@ interface IProps {
     setDataInit: (v: any) => void;
     reloadTable: () => void;
 }
-
-
 
 const ModalPermission = (props: IProps) => {
     const { openModal, setOpenModal, reloadTable, dataInit, setDataInit } = props;
@@ -48,14 +35,7 @@ const ModalPermission = (props: IProps) => {
                 ...valuesForm
             };
 
-            const res = await fetch(`${API_BASE_URL}/api/v1/permissions`, { // Thêm id vào URL
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(permission), // Gửi dữ liệu
-            });
-
+            const res = await updatePermissions(permission)
             const responseData = await res.json();
 
             if (res.ok) {
@@ -77,14 +57,7 @@ const ModalPermission = (props: IProps) => {
                 method,
                 module
             }
-            const res = await fetch(`${API_BASE_URL}/api/v1/permissions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(permission), // Gửi dữ liệu
-            });
-
+            const res = await createPermissions(permission)
             const responseData = await res.json();
             if (res.ok) {
                 message.success("Thêm mới permission thành công");
